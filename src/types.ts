@@ -33,6 +33,9 @@ export interface Agent {
   name: string
   role: string
   icon: string
+  shortDescription?: string
+  focus?: string
+  debateStyle?: string
   personality?: string
   scoring_focus?: string
   scoringFocus?: string

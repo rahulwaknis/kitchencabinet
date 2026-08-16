@@ -44,7 +44,7 @@ interface Props {
 }
 
 export default function AgentAvatar({ agent, size = 'md', selected }: Props) {
-  const initials = agent.avatarInitials || agent.name.split(' ').map((word) => word[0]).join('').slice(0, 2)
+  const initials = agent.name.split(' ').map((word) => word[0]).join('').slice(0, 2)
   const theme = (agent.colorTheme || 'slate').toLowerCase()
   const badgeStyle = themeBadge[theme] || themeBadge.slate
   const ringStyle = themeRing[theme] || themeRing.slate
@@ -53,11 +53,11 @@ export default function AgentAvatar({ agent, size = 'md', selected }: Props) {
   return (
     <div className={`relative inline-flex items-center justify-center overflow-hidden rounded-3xl bg-white shadow-sm ${ringStyle} ${sizeClass}`}>
       <span className={`flex h-full w-full items-center justify-center rounded-3xl ${agent.color || 'bg-slate-100'} ${agent.color ? 'text-current' : 'text-slate-900'}`}>
-        {agent.avatarEmoji || agent.icon || initials}
+        {agent.icon || initials}
       </span>
       <span className="sr-only">{agent.name}</span>
       <div className={`absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border border-white ${badgeStyle}`}>
-        <span className="text-[0.7rem] leading-none">{agent.avatarEmoji || agent.icon}</span>
+        <span className="text-[0.7rem] leading-none">{agent.icon}</span>
       </div>
       {selected ? (
         <div className="absolute -bottom-1 -left-1 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white text-[0.65rem] font-bold">

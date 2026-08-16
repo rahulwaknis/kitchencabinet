@@ -3,7 +3,7 @@ import { SELECTABLE_AGENTS, MODERATOR } from '../../lib/agents'
 import AgentAvatar from './AgentAvatar'
 
 export default function LoadingCabinet({ selectedIds = [] }: { selectedIds?: string[] }) {
-  const agentsToShow = selectedIds.length > 0 ? SELECTABLE_AGENTS.filter((a) => selectedIds.includes(a.id)) : SELECTABLE_AGENTS.slice(0, 5)
+  const agentsToShow = SELECTABLE_AGENTS.filter((a) => selectedIds.includes(a.id))
 
   return (
     <div className="card space-y-5">

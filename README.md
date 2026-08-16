@@ -5,7 +5,8 @@ Kitchen Cabinet is a no-login agentic AI recipe demonstrator where users enter i
 ## Features
 
 - Single-session recipe recommendations with no accounts and no saved data.
-- User-selected cooking agents with distinct scoring priorities.
+- Five available cooking agents: Protein, Nutrition, Fusion, Time, and Taste.
+- Users can select up to three agents for each temporary cabinet.
 - Concise and verbose debate modes.
 - Server-side OpenAI API route with JSON responses.
 - Basic input validation, output token caps, and lightweight rate limiting.
@@ -68,7 +69,7 @@ Create `.env.local` for local development and add these values as Vercel project
 OPENAI_API_KEY=
 OPENAI_MODEL=
 MAX_INGREDIENT_INPUT_CHARS=1000
-MAX_SELECTED_AGENTS=5
+MAX_SELECTED_AGENTS=3
 APP_RATE_LIMIT_WINDOW_MS=60000
 APP_RATE_LIMIT_MAX_REQUESTS=5
 ```
@@ -151,6 +152,7 @@ Then commit and push to the existing remote.
 - No login.
 - No database.
 - No saving.
+- No saved agents or recipes; every cabinet is a single session.
 - No weekly meal planning.
 - No image upload.
 - No pantry tracking.

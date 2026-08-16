@@ -12,6 +12,7 @@
 - Test API locally.
 - Test concise mode.
 - Test verbose mode.
+- Confirm the five-agent roster and three-agent selection limit.
 - Test rate limiting if practical.
 
 ## GitHub

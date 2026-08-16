@@ -6,13 +6,14 @@ interface Props {
   loading: boolean
   canGenerate?: boolean
   hideButton?: boolean
+  onNextStep?: () => void
 }
 
 const MAX_INGREDIENT_TEXT = 280
 const COOLDOWN_SECONDS = 10
 
 const IngredientForm = React.forwardRef<HTMLFormElement, Props>(
-  ({ onSubmit, loading, canGenerate = true, hideButton = false }, ref) => {
+  ({ onSubmit, loading, canGenerate = true, hideButton = false, onNextStep }, ref) => {
     const [ingredients, setIngredients] = React.useState('')
     const [mealType, setMealType] = React.useState('Any')
     const [timeAvailable, setTimeAvailable] = React.useState('30 minutes')
@@ -48,12 +49,9 @@ const IngredientForm = React.forwardRef<HTMLFormElement, Props>(
   return (
     <form ref={ref} onSubmit={submit} className="card card-strong space-y-6">
       <div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm text-amber-800 font-semibold uppercase tracking-[0.3em]">Kitchen inventory</p>
-            <p className="text-sm text-slate-600 max-w-sm mt-2">Use simple pantry ingredients and let the cabinet decide the best recipe path.</p>
-          </div>
-        </div>
+        <p className="text-sm text-amber-800 font-semibold uppercase tracking-[0.3em]">Step 1</p>
+        <h2 className="text-2xl font-semibold text-slate-900 mt-2">Kitchen Inventory</h2>
+        <p className="text-sm text-slate-600 max-w-xl mt-2">Use simple pantry ingredients and let the cabinet decide the best recipe path.</p>
       </div>
 
       <div>
@@ -168,6 +166,15 @@ const IngredientForm = React.forwardRef<HTMLFormElement, Props>(
               className="btn-primary disabled:opacity-60 disabled:cursor-not-allowed w-full sm:w-auto"
             >
               {loading ? 'Cabinet in session...' : 'Call the Cabinet'}
+            </button>
+          )}
+          {onNextStep && (
+            <button
+              type="button"
+              onClick={onNextStep}
+              className="btn-secondary w-full sm:w-auto"
+            >
+              Next Step
             </button>
           )}
         </div>

@@ -92,7 +92,7 @@ export default function CabinetMeeting({ meeting }: Props) {
 
             {discussion.moderator_decision && (
               <div className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-900">Chef Kabir’s verdict</div>
+                <div className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-900">Cabinet Moderator&apos;s verdict</div>
                 <p className="mt-2 text-sm text-amber-900 leading-6">{discussion.moderator_decision}</p>
               </div>
             )}

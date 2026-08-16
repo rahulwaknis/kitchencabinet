@@ -17,11 +17,9 @@ export default function Home() {
   const [error, setError] = React.useState<string | null>(null)
   const [data, setData] = React.useState<CabinetResponse | null>(null)
   const [selectedAgents, setSelectedAgents] = React.useState<string[]>([
-    'annapurna',
-    'jhatpat-jai',
-    'bachat-bindu',
-    'masala-meera',
-    'tarkik-tushar',
+    'protein',
+    'nutrition',
+    'time',
   ])
 
   // Refs for scroll behavior and form submission
@@ -96,27 +94,17 @@ export default function Home() {
 
       <main className="max-w-4xl mx-auto grid gap-6">
         {/* STEP 1: Kitchen Inventory */}
-        <section className="card card-strong space-y-6">
-          <div>
-            <p className="text-sm text-amber-800 font-semibold uppercase tracking-[0.3em]">Step 1</p>
-            <h2 className="text-2xl font-semibold text-slate-900 mt-2">What&apos;s in your kitchen today?</h2>
-          </div>
+        <section>
           <IngredientForm
             ref={ingredientFormRef}
             onSubmit={handleSubmit}
             loading={loading}
             canGenerate={selectedAgents.length > 0}
             hideButton={true}
-          />
-          <button
-            type="button"
-            onClick={() => {
+            onNextStep={() => {
               step2Ref.current?.scrollIntoView({ behavior: 'smooth' })
             }}
-            className="btn-secondary w-full sm:w-auto"
-          >
-            Next Step
-          </button>
+          />
         </section>
 
         {/* STEP 2: Choose Agents */}
@@ -124,7 +112,7 @@ export default function Home() {
           <div>
             <p className="text-sm text-amber-800 font-semibold uppercase tracking-[0.3em]">Step 2</p>
             <h2 className="text-2xl font-semibold text-slate-900 mt-2">Choose your agents</h2>
-            <p className="text-sm text-slate-600 mt-2">Pick up to 5 specialists who will inspect your pantry, timing, budget, and flavor.</p>
+            <p className="text-sm text-slate-600 mt-2">Pick up to 3 specialists to evaluate your ingredients and recipe options.</p>
           </div>
 
           <div>
@@ -135,8 +123,8 @@ export default function Home() {
                   setSelectedAgents((prev) => prev.filter((p) => p !== id))
                   setError(null)
                 } else {
-                  if (selectedAgents.length >= 5) {
-                    setError('The cabinet table only has five chairs. Deselect someone first.')
+                  if (selectedAgents.length >= 3) {
+                    setError('The cabinet has three seats today. Deselect one agent first.')
                     return
                   }
                   setError(null)
@@ -144,10 +132,6 @@ export default function Home() {
                 }
               }}
             />
-            <p className="mt-4 text-sm text-slate-600">
-              {selectedAgents.length} of 5 agents selected
-            </p>
-            <p className="text-xs text-slate-500 mt-2">Chef Kabir is always moderating.</p>
           </div>
 
           <div>
@@ -248,7 +232,7 @@ export default function Home() {
                       </div>
                     ))
                   )}
-                  <div className="ml-2 text-sm text-slate-600">Moderator: Chef Kabir 👨‍🍳</div>
+                  <div className="ml-2 text-sm text-slate-600">Moderator: Cabinet Moderator 👨‍🍳</div>
                 </div>
               </div>
 

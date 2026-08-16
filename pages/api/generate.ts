@@ -3,7 +3,7 @@ import { SELECTABLE_AGENTS, MODERATOR } from '../../lib/agents'
 
 const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini'
 const DEFAULT_MAX_INGREDIENT_INPUT_CHARS = 1000
-const DEFAULT_MAX_SELECTED_AGENTS = 5
+const DEFAULT_MAX_SELECTED_AGENTS = 3
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 60000
 const DEFAULT_RATE_LIMIT_MAX_REQUESTS = 5
 const CONCISE_MAX_OUTPUT_TOKENS = 3500
@@ -71,32 +71,40 @@ function isAllowedValue(value: unknown, allowed: string[]): value is string {
 
 const SYSTEM_PROMPT = `You are Kitchen Cabinet, an agentic AI meal recommendation system.
 
-When called, the user provides a temporary cabinet of selected agents. Only those selected agents should evaluate and score recipes. Chef Kabir is always included as the final moderator and summarizes the cabinet's decision.
+The user selected a temporary cabinet of agents. Only these selected agents should evaluate recipes. The Cabinet Moderator is always included to summarize the debate and choose the final recommendations.
 
 Each selectable agent has a clear role and scoring focus which you should follow. The moderator should summarize disagreements and pick final recommendations.
 
-Your job is to: parse the inventory, generate candidate recipes (6-8), have each selected agent score and comment on each recipe, eliminate weak recipes, and have Chef Kabir choose the final top 3 recipes. Return valid JSON only.
+Your job is to parse the inventory, generate 6-8 candidate recipes, have each selected agent score and comment on each recipe, eliminate weak recipes, and have the Cabinet Moderator choose the final top 3 recipes. Return valid JSON only.
 
 Rules:
 - Use mostly ingredients provided by the user.
 - You may assume basic staples such as salt, oil, water, basic spices, and basic cooking equipment.
 - Do not invent rare or expensive ingredients.
 - Clearly mention missing ingredients if any.
+- Avoid recipes needing too many missing ingredients, unrealistic steps, or more time than the user has.
+- Prefer practical home cooking.
 - Respect the user’s selected meal type, time, preference, and servings.
 - If a cabinet lacks a nutrition-focused agent, still make reasonable recipe suggestions but do NOT invent that agent.
-- Each selected agent should have a distinct point of view and concise, characterful notes.
+- If Protein Agent is selected, prioritize protein-rich options.
+- If Nutrition Agent is selected, prioritize balanced meals.
+- If Fusion Agent is selected, include creative but practical twists.
+- If Time Agent is selected, prioritize faster and simpler recipes.
+- If Taste Agent is selected, prioritize flavor, texture, and enjoyment.
+- Each selected agent should have a distinct point of view and concise, useful notes.
+- Do not invent or include unselected agents anywhere in the response.
 - Do not include markdown or extra commentary.
-- Chef Kabir must always provide a non-empty cabinet_summary field summarizing the final recommendation and reasoning.
+- The Cabinet Moderator must always provide a non-empty cabinet_summary field summarizing the final recommendation and reasoning.
 
 DEBATE STYLE HANDLING:
 - If debateStyle is "concise": Keep agent notes short. Do NOT generate cabinet_meeting; omit that field or set it to null.
 - If debateStyle is "verbose": Generate a full cabinet_meeting object. Show agents discussing and debating recipes.
-  - Include dialogue only from selected agents plus Chef Kabir.
+  - Include dialogue only from selected agents plus the Cabinet Moderator.
   - Each dialogue line should be 1-2 sentences maximum.
-  - Avoid childish jokes. Use personality lightly.
+  - Keep dialogue practical and concise. Avoid childish jokes and excessive personality.
   - Agents should disagree politely.
   - Include selected final recipes and some eliminated recipes in recipe_discussions (2-4 per discussion).
-  - Chef Kabir should provide a moderator_decision for each discussed recipe.
+  - The Cabinet Moderator should provide a moderator_decision for each discussed recipe.
   - Keep the total cabinet meeting readable and useful.
 `
 
@@ -105,7 +113,7 @@ const JSON_INSTRUCTIONS = `Return strict JSON in exactly this structure:
 "selected_agents": [
   {"id":"","name":"","role":"","icon":""}
 ],
-"moderator": {"id":"chef-kabir","name":"Chef Kabir","role":"Final Moderator","icon":"👨‍🍳"},
+"moderator": {"id":"moderator","name":"Cabinet Moderator","role":"Final Moderator","icon":"👨‍🍳"},
 "parsed_inventory": {
   "proteins": [],
   "vegetables": [],
@@ -159,7 +167,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { ingredients, mealType, timeAvailable, preference, servings, selected_agents, debateStyle } = req.body || {}
   const maxIngredientChars = readPositiveIntEnv('MAX_INGREDIENT_INPUT_CHARS', DEFAULT_MAX_INGREDIENT_INPUT_CHARS)
-  const maxSelectedAgents = readPositiveIntEnv('MAX_SELECTED_AGENTS', DEFAULT_MAX_SELECTED_AGENTS)
+  const maxSelectedAgents = Math.min(3, readPositiveIntEnv('MAX_SELECTED_AGENTS', DEFAULT_MAX_SELECTED_AGENTS))
 
   if (typeof ingredients !== 'string' || ingredients.trim().length === 0) {
     return res.status(400).json({ error: 'The cabinet needs at least a few ingredients before it can start arguing.' })
@@ -193,13 +201,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   // Validate selected agents from client; sanitize against known roster
-  const selected = Array.isArray(selected_agents) ? selected_agents.map(String) : []
-  const knownIds = SELECTABLE_AGENTS.map((a) => a.id)
+  const selected = Array.isArray(selected_agents) ? Array.from(new Set(selected_agents.map(String))) : []
+  const knownIds: string[] = SELECTABLE_AGENTS.map((a) => a.id)
   if (selected.length === 0) {
     return res.status(400).json({ error: 'No valid selected agents provided. Choose at least one agent.' })
   }
   if (selected.length > maxSelectedAgents) {
-    return res.status(400).json({ error: `Choose no more than ${maxSelectedAgents} agents for one cabinet session.` })
+    return res.status(400).json({ error: 'The cabinet has three seats today. Deselect one agent first.' })
   }
 
   const invalidSelected = selected.filter((id) => !knownIds.includes(id))
@@ -211,11 +219,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Build a selected agents block to include in prompt
   const selectedBlock = SELECTABLE_AGENTS.filter((a) => selected.includes(a.id)).map((a) => {
-    const focus = a.scoringFocus || a.scoring_focus || 'distinct specialist focus'
-    return `- ${a.name} (${a.role}): ${a.personality}. Focus: ${focus}. Speech style: ${a.speechStyle || 'concise and practical'}. Cares about: ${a.caresAbout || 'the most important dinner trade-offs'}. Objects to: ${a.objectsTo || 'weak or unfocused recipe choices'}. Example: ${a.exampleLine || 'Give a short, useful comment that sounds like this.'}`
+    return `- ${a.name} (${a.id}): ${a.shortDescription} Focus: ${a.focus}. Debate style: ${a.debateStyle}`
   }).join('\n')
 
-  const promptHeader = `Selected agents:\n${selectedBlock}\n\nModerator:\n- ${MODERATOR.name} (${MODERATOR.role}): ${MODERATOR.personality}. Speech style: ${MODERATOR.speechStyle || 'clear and balanced'}. Cares about: ${MODERATOR.caresAbout || 'balanced decisions and clear reasons'}. Objects to: ${MODERATOR.objectsTo || 'endless debate or clever but impractical recipes'}. Example: ${MODERATOR.exampleLine || 'The cabinet has heard the objections. This one wins because it is practical, tasty, and uses what matters.'}\n\n`;
+  const promptHeader = `Selected agents:\n${selectedBlock}\n\nModerator:\n- ${MODERATOR.name} (${MODERATOR.role}): ${MODERATOR.shortDescription} Focus: ${MODERATOR.focus}. Debate style: ${MODERATOR.debateStyle}\n\n`;
 
   const finalUserContent = promptHeader + userContent
 
@@ -375,6 +382,39 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
+    // Treat model output as untrusted: return only the requested agents and the
+    // canonical moderator, even if an unselected or legacy agent is invented.
+    const selectedConfigs = SELECTABLE_AGENTS.filter((agent) => selected.includes(agent.id))
+    const allowedIds: Set<string> = new Set(selectedConfigs.map((agent) => agent.id))
+    const allowedNames: Set<string> = new Set(selectedConfigs.map((agent) => agent.name))
+    const isAllowedAgent = (id: unknown, name: unknown) =>
+      (typeof id === 'string' && allowedIds.has(id)) || (typeof name === 'string' && allowedNames.has(name))
+    const isAllowedReference = (value: unknown) =>
+      typeof value === 'string' && (allowedIds.has(value) || allowedNames.has(value))
+
+    parsed.selected_agents = selectedConfigs.map(({ id, name, role, icon }) => ({ id, name, role, icon }))
+    parsed.moderator = { id: MODERATOR.id, name: MODERATOR.name, role: MODERATOR.role, icon: MODERATOR.icon }
+    if (Array.isArray(parsed.recipe_evaluations)) {
+      parsed.recipe_evaluations = parsed.recipe_evaluations.map((evaluation: any) => ({
+        ...evaluation,
+        agent_scores: Array.isArray(evaluation.agent_scores)
+          ? evaluation.agent_scores.filter((score: any) => isAllowedAgent(score?.agent_id, score?.agent_name))
+          : [],
+      }))
+    }
+    if (parsed.cabinet_meeting?.recipe_discussions && Array.isArray(parsed.cabinet_meeting.recipe_discussions)) {
+      parsed.cabinet_meeting.recipe_discussions = parsed.cabinet_meeting.recipe_discussions.map((discussion: any) => ({
+        ...discussion,
+        supporting_agents: Array.isArray(discussion.supporting_agents) ? discussion.supporting_agents.filter(isAllowedReference) : [],
+        objecting_agents: Array.isArray(discussion.objecting_agents) ? discussion.objecting_agents.filter(isAllowedReference) : [],
+        dialogue: Array.isArray(discussion.dialogue)
+          ? discussion.dialogue.filter((line: any) =>
+              isAllowedAgent(line?.agent_id, line?.agent_name) || line?.agent_id === MODERATOR.id || line?.agent_name === MODERATOR.name)
+          : [],
+      }))
+    }
+    if (normalizedDebateStyle === 'concise') parsed.cabinet_meeting = null
+
     if (!parsed.cabinet_summary || typeof parsed.cabinet_summary !== 'string' || parsed.cabinet_summary.trim() === '') {
       console.warn('cabinet_summary missing or empty; generating fallback summary')
       if (parsed.cabinet_meeting?.closing_note) {
@@ -385,9 +425,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           const why = rec.why_selected || 'because it best fits the user preferences and ingredients'
           return `${name}: ${why}.`
         })
-        parsed.cabinet_summary = `Chef Kabir selected the top dishes based on the cabinet's discussion and the available ingredients. ${summaryLines.join(' ')}`
+        parsed.cabinet_summary = `The Cabinet Moderator selected the top dishes based on the cabinet's discussion and the available ingredients. ${summaryLines.join(' ')}`
       } else {
-        parsed.cabinet_summary = 'Chef Kabir reviewed the cabinet discussion and selected the best recipe recommendations based on the available ingredients, time, and user preferences.'
+        parsed.cabinet_summary = 'The Cabinet Moderator reviewed the cabinet discussion and selected the best recipe recommendations based on the available ingredients, time, and user preferences.'
       }
     }
 

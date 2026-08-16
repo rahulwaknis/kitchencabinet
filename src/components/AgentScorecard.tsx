@@ -30,7 +30,7 @@ export default function AgentScorecard({
                   <div key={as.agent_id}><span className="font-semibold">{as.agent_icon} {as.agent_name}:</span> {as.note} <span className="ml-2 text-slate-500">({as.score})</span></div>
                 ))}
               </div>
-              {ev.moderator_note ? <div className="mt-3 text-sm text-slate-700"><strong>Chef:</strong> {ev.moderator_note}</div> : null}
+              {ev.moderator_note ? <div className="mt-3 text-sm text-slate-700"><strong>Moderator:</strong> {ev.moderator_note}</div> : null}
             </div>
           ))}
         </div>
